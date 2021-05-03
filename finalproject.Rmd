@@ -1,0 +1,24 @@
+---
+title: "Final Project"
+author: "Julia Eiken and Zach Haubert"
+date: "5/2/2021"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+Dataset: Mountain Pine Beetle and Dissolved Organic Carbon
+Question: Build a linear model for DOC.
+
+```{r}
+load("DOC_baseFlow_weightedAvg_and_predictors.RData")
+ls()
+
+data <- DOC_baseFlow_weightedAvg_and_predictors
+```
+
+TODO: 
+Next meeting will be Tuesday after class, 4:30 or so. 
+Watch video before next meeting. 
