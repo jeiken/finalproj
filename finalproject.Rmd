@@ -1,6 +1,6 @@
 ---
 title: "Final Project"
-author: "Julia Eiken and Zach Haubert"
+author: "Julia Eiken and Zach Haubert and Alex Pate"
 date: "5/2/2021"
 output: pdf_document
 ---
@@ -22,3 +22,119 @@ data <- DOC_baseFlow_weightedAvg_and_predictors
 TODO: 
 Next meeting will be Tuesday after class, 4:30 or so. 
 Watch video before next meeting. 
+
+TODO: 
+make linear model 
+backward -> 
+forward ->
+lasso -> 
+
+
+```{r}
+n <- nrow(data)
+p <- sample(1:n) 
+train_size <- 939
+
+train <- data[p[1:train_size], ]
+test <- data[p[(train_size + 1):n], ]
+
+## OG model
+model <- lm(formula = meanDOC ~ ., data = train)
+summary(model)
+
+## Backwards 
+BIC <- step(model, direction = "backward", k = log(nrow(train)), trace = 0)
+summary(BIC) # 11/31 variables selected, R^2 = 0.6154
+MIC <- step(model, direction = "backward", k = nrow(train), trace = 0)
+summary(MIC) # no variables are selected 
+
+predictions_BIC <- predict(BIC, test)
+y_test <- test$meanDOC
+(RMSE_BIC <- sqrt(mean(((predictions_BIC - y_test)^2))))
+(MAE_BIC <- mean(abs(predictions_BIC - y_test)))
+
+
+
+## Forwards
+small_model <- lm(meanDOC ~ 1, data = train)
+BICF <- step(small_model, direction = "forward", scope = formula(model), k = log(nrow(train)), trace = 0)
+summary(BICF) # 9 variables selected, R^2 = 0.6119
+MICF <- step(small_model, direction = "forward", scope = formula(model), k = nrow(train), trace = 0)
+summary(MICF) # no variables are selected, 
+
+predictions_BICF <- predict(BICF, test)
+(RMSE_BICF <- sqrt(mean(((predictions_BICF - y_test)^2))))
+(MAE_BICF <- mean(abs(predictions_BICF - y_test)))
+
+## Lasso
+library(glmnet)
+leave_out <- which((colnames(train) == "meanDOC"))
+x <- as.matrix(train[,-leave_out])
+y <- train[, "meanDOC"]
+lasso <- cv.glmnet(x, y)
+coef(lasso) # selected 4 variables, 
+
+lasso_predictions <- predict(lasso, newx = x)
+lasso_residuals <- lasso_predictions - train$meanDOC
+lasso_SSR <- sum(lasso_residuals^2) # 3368.946
+mean <- mean(train$meanDOC)
+SST <- sum((train$meanDOC - mean)^2) # 7336.643
+lasso_rSquared <- 1 - lasso_SSR/SST #unadjusted 0.5408055
+
+x_test <- as.matrix(test[,-leave_out])
+predictions_lasso <- predict(lasso, x_test)
+(RMSE_lasso <- sqrt(mean(((predictions_lasso - y_test)^2))))
+(MAE_lasso <- mean(abs(predictions_lasso - y_test)))
+
+
+## Ridge
+#ridge <- glmnet(x, y, alpha = 0)
+#coef(ridge)[,1] # kept all coeffcients 
+#summary(ridge)
+
+#ridge_predictions <- predict(ridge, newx = x)
+#ridge_residuals <- ridge_predictions - train$meanDOC
+#ridge_SSR <- sum(ridge_residuals^2) # 
+#ridge_rSquared <- 1 - ridge_SSR/SST #unadjusted -61.98351
+
+```
+
+
+| Model  | $R^2$ | RMSE | MAE | 
+|--------|-------|-------|--------|
+|   Backw   |  0.6154  |   1.8245   |   1.1366  |
+|   Forwa   |  0.6119  |   1.8582   |   1.1465  |
+|   Lasso   |  0.5408  |   2.0171   |   1.3340  |
+
+
+```{r}
+for (i in 1:32) { 
+  if (i == 3) { 
+    next
+  }
+  m <- mean(data[,i])
+  s <- sd(data[,i])
+    print(paste("Mean and variance for", colnames(data)[i], "are", m, "and", s))
+
+}
+
+ # we choose to exclude variables with a small standard deviation relative to the mean
+ # latitude, longitude, year
+
+delete <- c(2, 4, 5)
+filtered_data <- data[,-delete]
+
+# looking at the data for correlation
+for (i in 1:29){ 
+  if (i == 2) { 
+    next
+  }
+  plot(filtered_data[,i], filtered_data[,2], main = colnames(filtered_data)[i])
+}
+# based on the plots we will exclude newLocationID, soil fractions
+# we will look into fire_norms, MPB, elevation, aspect and wasteWaterPointSources
+# we will keep temperatures linear
+# we will consider SWE and precip exponential decay
+ 
+```
+
