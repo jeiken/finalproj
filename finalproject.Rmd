@@ -1,7 +1,6 @@
 ---
-title: "Final Project"
-author: "Julia Eiken and Zach Haubert and Alex Pate"
-date: "5/2/2021"
+title: "An Exploration of Mountain Pine Beetle Infestations and "
+author: "Julia Eiken, Zach Haubert and Alex Pate"
 output: pdf_document
 ---
 
@@ -29,7 +28,16 @@ backward ->
 forward ->
 lasso -> 
 
+# Abstract
 
+# Introduction 
+
+Mountain pine beetles are an invasive species that destroy forests over the entire western United States. The beetles infest a pine tree when it is healthy (called the green stage), kill the tree such that the needles turn burnt orange (called the red stage), and then leave the tree as the needles fall to the forest floor (called the gray stage). As the needles cover the forest floor, they begin to decompose. Rain and snow then washes the decomposed organic material into lakes and streams, raising the level of dissolved organic carbon (DOC). This becomes relevant to humans because in the disinfection process for drinking water, added chlorine reacts with the DOC, producing carcinogenic byproducts. This data set presents the DOC content in water from the western US from 1984 through 2012 in relationship with several independent variables. The variables can be organized into several categories: forest disturbance (fires, pine beetle infestations), morphological (topography, hydrologic soil types), climate (precipitation, temperature, snow cover), and anthropogenic (land cover, wastewater point sources). Observations are made in green, red and gray stage areas as well as upstream and downstream locations. This report details a model of the relationship between DOC and 17 independent variables, determining which variables have the most impact on the DOC content in the western US. This report also intends to demonstrate the rise of DOC in drinking water sources to demonstrate the need to protect our forests. 
+
+
+*** USE STANDARDIZED DATA SET
+# Methods
+To begin, we analyzed the raw data sets with three methods of linear modeling: backwards step, forwards step, and lasso. 
 ```{r}
 n <- nrow(data)
 p <- sample(1:n) 
@@ -98,7 +106,7 @@ predictions_lasso <- predict(lasso, x_test)
 #ridge_rSquared <- 1 - ridge_SSR/SST #unadjusted -61.98351
 
 ```
-
+We analyzed the performance of each of these models with measures $R^2$, root mean squared error and mean absolute error. 
 
 | Model  | $R^2$ | RMSE | MAE | 
 |--------|-------|-------|--------|
@@ -106,7 +114,7 @@ predictions_lasso <- predict(lasso, x_test)
 |   Forwa   |  0.6119  |   1.8582   |   1.1465  |
 |   Lasso   |  0.5408  |   2.0171   |   1.3340  |
 
-
+Secondly, 
 ```{r}
 for (i in 1:32) { 
   if (i == 3) { 
@@ -137,4 +145,8 @@ for (i in 1:29){
 # we will consider SWE and precip exponential decay
  
 ```
+
+# Results 
+
+# Discussion 
 
