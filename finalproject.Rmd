@@ -15,27 +15,55 @@ Question: Build a linear model for DOC.
 load("DOC_baseFlow_weightedAvg_and_predictors.RData")
 ls()
 
-data <- DOC_baseFlow_weightedAvg_and_predictors
+raw_data <- DOC_baseFlow_weightedAvg_and_predictors
+y_response <- raw_data[,"meanDOC"]
+
+
+xFactors <- model.matrix(y_response ~ as.factor(raw_data[,"aspect_predominant"]))[, -1]
+
+colNames_xFactors <- c("aspect_predominant_1")
+for (index in 2:8)
+{
+  colNames_xFactors <- c(colNames_xFactors,paste("aspect_predominant_",as.character(index),sep=""))
+}
+
+colnames(xFactors) <- colNames_xFactors
+
+X_predictors_unStandardized <- as.matrix( cbind( DOC_baseFlow_weightedAvg_and_predictors[,c(2,6,9:30,32)], xFactors) )
+dataFrame_X_predictors <- as.data.frame(X_predictors_unStandardized)
+
+X_predictors_means <- colMeans(X_predictors_unStandardized)
+X_predictors_sd <- apply(X_predictors_unStandardized, MARGIN=2, 'sd')
+
+time_index <- 			1
+fire_indices <- 		2
+MPB_indecies <- 		3:5
+landCover_indices <- 	6:8
+temp_indices <- 		9:14
+precipSnow_indices <- 	15:20
+soil_indices <- 		21:23
+elevation_index <- 		24
+wasteWater_index <- 	25
+aspec_indices <- 		26:33
+X_indices_subtractMean <- c(time_index, temp_indices, precipSnow_indices, soil_indices, elevation_index, wasteWater_index)
+X_indices_scaleBySD <- c(fire_indices)
+
+X_predictors_standardized <- X_predictors_unStandardized
+X_predictors_standardized[,X_indices_subtractMean] <- sweep(X_predictors_unStandardized[,X_indices_subtractMean],MARGIN=2,X_predictors_means[X_indices_subtractMean],'-')
+  
+colnames(X_predictors_standardized)
+data <- dataFrame_X_standardized <- as.data.frame(X_predictors_standardized)
+
 ```
 
-TODO: 
-Next meeting will be Tuesday after class, 4:30 or so. 
-Watch video before next meeting. 
-
-TODO: 
-make linear model 
-backward -> 
-forward ->
-lasso -> 
 
 # Abstract
 
 # Introduction 
 
-Mountain pine beetles are an invasive species that destroy forests over the entire western United States. The beetles infest a pine tree when it is healthy (called the green stage), kill the tree such that the needles turn burnt orange (called the red stage), and then leave the tree as the needles fall to the forest floor (called the gray stage). As the needles cover the forest floor, they begin to decompose. Rain and snow then washes the decomposed organic material into lakes and streams, raising the level of dissolved organic carbon (DOC). This becomes relevant to humans because in the disinfection process for drinking water, added chlorine reacts with the DOC, producing carcinogenic byproducts. This data set presents the DOC content in water from the western US from 1984 through 2012 in relationship with several independent variables. The variables can be organized into several categories: forest disturbance (fires, pine beetle infestations), morphological (topography, hydrologic soil types), climate (precipitation, temperature, snow cover), and anthropogenic (land cover, wastewater point sources). Observations are made in green, red and gray stage areas as well as upstream and downstream locations. This report details a model of the relationship between DOC and 17 independent variables, determining which variables have the most impact on the DOC content in the western US. This report also intends to demonstrate the rise of DOC in drinking water sources to demonstrate the need to protect our forests. 
+Mountain pine beetles are an invasive species that destroy forests over the entire western United States. The beetles infest a pine tree when it is healthy (called the green stage), kill the tree such that the needles turn burnt orange (called the red stage), and then leave the tree as the needles fall to the forest floor (called the gray stage). As the needles cover the forest floor, they begin to decompose. Rain and snow then washes the decomposed organic material into lakes and streams, raising the level of dissolved organic carbon (DOC). This becomes relevant to humans because in the disinfection process for drinking water, added chlorine reacts with the DOC, producing carcinogenic byproducts. This data set presents the DOC content in water from the western US from 1984 through 2012, specifically from August, September, October and November, in relationship with several independent variables. The variables can be organized into several categories: forest disturbance (fires, pine beetle infestations), morphological (topography, hydrologic soil types), climate (precipitation, temperature, snow cover), and anthropogenic (land cover, wastewater point sources). Observations are made in green, red and gray stage areas as well as upstream and downstream locations. This report details a model of the relationship between DOC and 17 independent variables, determining which variables have the most impact on the DOC content in the western US. This report also intends to demonstrate the rise of DOC in drinking water sources to demonstrate the need to protect our forests. 
 
 
-*** USE STANDARDIZED DATA SET
 # Methods
 To begin, we analyzed the raw data sets with three methods of linear modeling: backwards step, forwards step, and lasso. 
 ```{r}
@@ -43,32 +71,36 @@ n <- nrow(data)
 p <- sample(1:n) 
 train_size <- 939
 
-train <- data[p[1:train_size], ]
-test <- data[p[(train_size + 1):n], ]
+x_train <- data[p[1:train_size], ]
+x_test <- data[p[(train_size + 1):n], ]
+y_train <- y_response[p[1:train_size]]
+y_test <- y_response[p[(train_size + 1):n]]
+train <- cbind(y_train, x_train)
+test <- cbind(y_test, x_test)
 
 ## OG model
-model <- lm(formula = meanDOC ~ ., data = train)
+model <- lm(formula = y_train ~ ., data = train)
 summary(model)
 
 ## Backwards 
 BIC <- step(model, direction = "backward", k = log(nrow(train)), trace = 0)
 summary(BIC) # 11/31 variables selected, R^2 = 0.6154
-MIC <- step(model, direction = "backward", k = nrow(train), trace = 0)
-summary(MIC) # no variables are selected 
+# MIC <- step(model, direction = "backward", k = nrow(train), trace = 0)
+# summary(MIC) # no variables are selected 
 
 predictions_BIC <- predict(BIC, test)
-y_test <- test$meanDOC
+## y_test <- test$meanDOC
 (RMSE_BIC <- sqrt(mean(((predictions_BIC - y_test)^2))))
 (MAE_BIC <- mean(abs(predictions_BIC - y_test)))
 
 
 
 ## Forwards
-small_model <- lm(meanDOC ~ 1, data = train)
+small_model <- lm(y_train ~ 1, data = train)
 BICF <- step(small_model, direction = "forward", scope = formula(model), k = log(nrow(train)), trace = 0)
 summary(BICF) # 9 variables selected, R^2 = 0.6119
-MICF <- step(small_model, direction = "forward", scope = formula(model), k = nrow(train), trace = 0)
-summary(MICF) # no variables are selected, 
+# MICF <- step(small_model, direction = "forward", scope = formula(model), k = nrow(train), trace = 0)
+# summary(MICF) # no variables are selected, 
 
 predictions_BICF <- predict(BICF, test)
 (RMSE_BICF <- sqrt(mean(((predictions_BICF - y_test)^2))))
@@ -76,21 +108,21 @@ predictions_BICF <- predict(BICF, test)
 
 ## Lasso
 library(glmnet)
-leave_out <- which((colnames(train) == "meanDOC"))
+leave_out <- which((colnames(train) == "y_train"))
 x <- as.matrix(train[,-leave_out])
-y <- train[, "meanDOC"]
+y <- train[, "y_train"]
 lasso <- cv.glmnet(x, y)
-coef(lasso) # selected 4 variables, 
+coef(lasso) # selected 5 variables, 
 
 lasso_predictions <- predict(lasso, newx = x)
-lasso_residuals <- lasso_predictions - train$meanDOC
+lasso_residuals <- lasso_predictions - train$y_train
 lasso_SSR <- sum(lasso_residuals^2) # 3368.946
-mean <- mean(train$meanDOC)
-SST <- sum((train$meanDOC - mean)^2) # 7336.643
+mean <- mean(train$y_train)
+SST <- sum((train$y_train - mean)^2) # 7336.643
 lasso_rSquared <- 1 - lasso_SSR/SST #unadjusted 0.5408055
 
-x_test <- as.matrix(test[,-leave_out])
-predictions_lasso <- predict(lasso, x_test)
+x_test_matrix <- as.matrix(x_test)
+predictions_lasso <- predict(lasso, x_test_matrix)
 (RMSE_lasso <- sqrt(mean(((predictions_lasso - y_test)^2))))
 (MAE_lasso <- mean(abs(predictions_lasso - y_test)))
 
@@ -106,44 +138,94 @@ predictions_lasso <- predict(lasso, x_test)
 #ridge_rSquared <- 1 - ridge_SSR/SST #unadjusted -61.98351
 
 ```
-We analyzed the performance of each of these models with measures $R^2$, root mean squared error and mean absolute error. 
+We analyzed the performance of each of these models with measures $R^2$, root mean squared error and mean absolute error. Lasso is clearly the worst fit, but backwards step and forward step aren't great either.  
 
 | Model  | $R^2$ | RMSE | MAE | 
 |--------|-------|-------|--------|
-|   Backw   |  0.6154  |   1.8245   |   1.1366  |
-|   Forwa   |  0.6119  |   1.8582   |   1.1465  |
-|   Lasso   |  0.5408  |   2.0171   |   1.3340  |
+|   Backw   |  0.6625  |   2.1508   |   1.1739  |
+|   Forwa   |  0.6390  |   2.1056   |   1.1792  |
+|   Lasso   |  0.5709  |   2.2451   |   1.3401  |
 
-Secondly, 
+We then used these models to create our own. 
 ```{r}
-for (i in 1:32) { 
-  if (i == 3) { 
-    next
-  }
+for (i in 1:33) { 
   m <- mean(data[,i])
   s <- sd(data[,i])
-    print(paste("Mean and variance for", colnames(data)[i], "are", m, "and", s))
+  print(paste("Mean and variance for", colnames(data)[i], "are", m, "and", s))
 
 }
 
  # we choose to exclude variables with a small standard deviation relative to the mean
- # latitude, longitude, year
+ # year
 
-delete <- c(2, 4, 5)
+delete <- c(1)
 filtered_data <- data[,-delete]
 
 # looking at the data for correlation
-for (i in 1:29){ 
-  if (i == 2) { 
-    next
-  }
-  plot(filtered_data[,i], filtered_data[,2], main = colnames(filtered_data)[i])
+for (i in 1:32){ 
+
+  plot(filtered_data[,i], y_response, main = colnames(filtered_data)[i])
 }
+
+###### Previous notes
 # based on the plots we will exclude newLocationID, soil fractions
 # we will look into fire_norms, MPB, elevation, aspect and wasteWaterPointSources
 # we will keep temperatures linear
 # we will consider SWE and precip exponential decay
  
+
+##### Current Notes 
+# discard all SWE variables due to lack of relationship
+# discard elevation 
+# discard all year average variables (all other observations are for just base flow months)
+# discard temp for non-base flow months 
+
+new_delete <- c(17, 18, 19, 23, 9, 10, 12, 13, 16, 25, 26, 27, 28, 29, 30, 31, 32)
+new_filtered_data <- filtered_data[, -new_delete]
+
+cbind(y_response, new_filtered_data)
+
+new_model <- lm(formlua = y_response ~ ., data = new_filtered_data)
+summary(new_model)
+
+
+```
+
+
+```{r}
+# for (i in 1:32) { 
+#   new_model_2 <- lm(formula = y_response ~ filtered_data[,i], data = filtered_data)
+#   summary(new_model_2)
+#  
+#  
+# }
+
+my_lms <- lapply(1:32, function(x) lm(y_response ~ filtered_data[,x]))
+summaries <- lapply(my_lms, summary)
+r <- sapply(summaries, function(x) c(r_sq = x$r.squared))
+q <- which(r > 0.4)
+r[q]
+q
+
+colnames(filtered_data)[q]
+
+small_filtered_data <- filtered_data[, colnames(filtered_data)[q]]
+cbind(y_response, small_filtered_data)
+
+new_model_3 <- lm(formula = y_response ~ ., data = small_filtered_data)
+summary(new_model_3)
+
+```
+
+
+```{r}
+data2 <- cbind(y_response, data)
+new_model_4 <- lm(formula = y_response ~ elevation_mean + maxTemp_yearAvg + maxTemp_nonBaseFlow + maxTemp_baseFlow + minTemp_yearAvg + minTemp_baseFlow + log(abs(SWE_baseFlow)) + log(abs(SWE_nonBaseFlow)) + log(abs(SWE_yearAvg)), data = data2)
+summary(new_model_4)
+
+
+new_model_5 <- lm(formula = y_response ~ elevation_mean + minTemp_yearAvg, data = data2)
+summary(new_model_5)
 ```
 
 # Results 
